@@ -29,9 +29,48 @@ class FuncNode(object):
     def __init__(self, name: str, left=None, right=None):
         assert isinstance(left, FuncNode) or left is None
         assert isinstance(right, FuncNode) or right is None
-        self.value: str = name
-        self.left: Optional[FuncNode] = left
-        self.right: Optional[FuncNode] = right
+        self._name: str = name
+        self._left: Optional[FuncNode] = left
+        self._right: Optional[FuncNode] = right
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def left(self):
+        return self._left
+
+    @left.setter
+    def left(self, new_left):
+        assert isinstance(new_left, FuncNode) or new_left is None
+        self._left = new_left
+
+    @property
+    def right(self):
+        return self._right
+
+    @right.setter
+    def right(self, new_right):
+        assert isinstance(new_right, FuncNode) or new_right is None
+        self._right = new_right
+
+    @property
+    def is_leaf(self) -> bool:
+        return self._left is None and self._right is None
+
+    @property
+    def is_unary(self) -> bool:
+        return self._left is not None and self._right is None
+
+    @property
+    def tuple_tree(self):
+        if self.is_leaf:
+            return self._name
+        elif self.is_unary:
+            return self._name, self._left.tuple_tree
+        else:
+            return self._name, self._left.tuple_tree, self._right.tuple_tree
 
     @classmethod
     def from_expr(cls, expr: str):
@@ -126,4 +165,4 @@ class FuncEx(object):
 
 
 if __name__ == '__main__':
-    print(FuncNode.from_expr(eg_cc), len(eg_cc))
+    print(FuncNode.from_expr(eg_cc).tuple_tree, len(eg_cc))
