@@ -3,7 +3,8 @@
 # AP Computer Science Principles
 # 9 April 2020
 import re
-from typing import List, Optional, Union, Tuple
+from typing import List, Optional, Union, Tuple, Callable
+from unicodedata import numeric
 
 # standard examples
 eg_f = 'f(x)=cos(e^x-x^2)*ln(x/2)'  # classic
@@ -25,6 +26,19 @@ class FuncNode(object):
     regex_first_operator = re.compile(r'^-?(?P<before_opr>[^+*/^()-]+)(?P<opr>[+*/^-])(?=\()')
     regex_pre_naked_subs = re.compile(r'\w+(?=[+*/^-])|(?<=[+*/^-])\w|^\w$')
     regex_wrapping_func_name = re.compile(r'^(?P<name>[A-Za-z]+)\((?P<arg>.+)\)$')
+
+    class Func(object):
+        conventional_functions: List[str] = []
+
+        def __init__(self, name):
+            self._name = name
+
+        @property
+        def name(self):
+            return self._name
+
+        def apply(self):
+            pass
 
     def __init__(self, name: str, left=None, right=None):
         assert isinstance(left, FuncNode) or left is None
@@ -57,20 +71,23 @@ class FuncNode(object):
 
     @property
     def is_leaf(self) -> bool:
-        return self._left is None and self._right is None
+        return self.left is None and self.right is None
 
     @property
     def is_unary(self) -> bool:
-        return self._left is not None and self._right is None
+        return self.left is not None and self.right is None
 
     @property
     def tuple_tree(self):
         if self.is_leaf:
-            return self._name
+            return self.name
         elif self.is_unary:
-            return self._name, self._left.tuple_tree
+            return self.name, self.left.tuple_tree
         else:
-            return self._name, self._left.tuple_tree, self._right.tuple_tree
+            return self.name, self.left.tuple_tree, self.right.tuple_tree
+
+    def apply(self, **kwargs):
+        pass
 
     @classmethod
     def from_expr(cls, expr: str):
@@ -101,8 +118,6 @@ class FuncNode(object):
                 pass
             assert split > 0
             name = expr[split]
-            print("left:", expr[:split])
-            print("right:", expr[split+1:])
             left = cls.from_expr(expr[:split])
             right = cls.from_expr(expr[split+1:])
         assert name is not None
@@ -149,7 +164,7 @@ class FuncEx(object):
         self._vars: List[str] = head.group('parameters').split(',') if head is None else ['x']
         self._expr: str = head.group('expression')
         assert self._expr
-        self._root: FuncNode = FuncNode.from_expr(self._expr)
+        self._root: FuncNode = FuncNode.from_expr(self.expr)
 
     @property
     def name(self) -> str:
@@ -163,6 +178,18 @@ class FuncEx(object):
     def expr(self) -> str:
         return self._expr
 
+    @property
+    def root(self) -> FuncNode:
+        return self._root
+
+    @property
+    def tuple_tree(self) -> tuple:
+        return self.root.tuple_tree
+
+    def apply(self, *args, **kwargs):
+        assert len(args) <= len(self.vars)
+
+
 
 if __name__ == '__main__':
-    print(FuncNode.from_expr(eg_cc).tuple_tree, len(eg_cc))
+    print(FuncEx(eg_f).tuple_tree, len(eg_cc))

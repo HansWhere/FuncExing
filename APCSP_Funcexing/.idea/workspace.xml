@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="19be9995-633d-4c17-bbd7-647bca99879b" name="Default Changelist" comment="">
+    <list default="true" id="19be9995-633d-4c17-bbd7-647bca99879b" name="Default Changelist" comment="04/18">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/funcexing.py" beforeDir="false" afterPath="$PROJECT_DIR$/funcexing.py" afterDir="false" />
     </list>
@@ -112,7 +112,14 @@
       <option name="project" value="LOCAL" />
       <updated>1587164243252</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="add some properties">
+      <created>1587184369245</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1587184369245</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -130,6 +137,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="update 20200417" />
-    <option name="LAST_COMMIT_MESSAGE" value="update 20200417" />
+    <MESSAGE value="add some properties" />
+    <option name="LAST_COMMIT_MESSAGE" value="add some properties" />
   </component>
 </project>
