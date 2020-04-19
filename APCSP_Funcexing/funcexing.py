@@ -4,7 +4,6 @@
 # 9 April 2020
 import re
 from typing import List, Optional, Union, Tuple, Callable
-from unicodedata import numeric
 
 # standard examples
 eg_f = 'f(x)=cos(e^x-x^2)*ln(x/2)'  # classic
@@ -23,9 +22,8 @@ eg_p = 'p(x)=cos(e^x-x^2)*ln(x/2))'  # unbalanced parentheses
 
 
 class FuncNode(object):
-    regex_first_operator = re.compile(r'^-?(?P<before_opr>[^+*/^()-]+)(?P<opr>[+*/^-])(?=\()')
-    regex_pre_naked_subs = re.compile(r'\w+(?=[+*/^-])|(?<=[+*/^-])\w|^\w$')
-    regex_wrapping_func_name = re.compile(r'^(?P<name>[A-Za-z]+)\((?P<arg>.+)\)$')
+    regex_pre_naked_subs = re.compile(r'\w+(?=[,+*/^-])|(?:(?<=[,+*/^-])|^)\w+$')
+    regex_wrapping_func_name = re.compile(r'^(?P<name>[A-Za-z]+)\((?P<args>.+)\)$')
 
     class Func(object):
         conventional_functions: List[str] = []
@@ -40,51 +38,31 @@ class FuncNode(object):
         def apply(self):
             pass
 
-    def __init__(self, name: str, left=None, right=None):
-        assert isinstance(left, FuncNode) or left is None
-        assert isinstance(right, FuncNode) or right is None
+    def __init__(self, name: str, children: Optional[list] = None):
+        if children is None:
+            children = []
         self._name: str = name
-        self._left: Optional[FuncNode] = left
-        self._right: Optional[FuncNode] = right
+        self._children: List[FuncNode] = children
 
     @property
     def name(self):
         return self._name
 
     @property
-    def left(self):
-        return self._left
+    def children(self):
+        return self._children
 
-    @left.setter
-    def left(self, new_left):
-        assert isinstance(new_left, FuncNode) or new_left is None
-        self._left = new_left
-
-    @property
-    def right(self):
-        return self._right
-
-    @right.setter
-    def right(self, new_right):
-        assert isinstance(new_right, FuncNode) or new_right is None
-        self._right = new_right
-
-    @property
-    def is_leaf(self) -> bool:
-        return self.left is None and self.right is None
-
-    @property
-    def is_unary(self) -> bool:
-        return self.left is not None and self.right is None
+    @children.setter
+    def children(self, new_children):
+        assert isinstance(new_children, FuncNode) or new_children is None
+        self._children = new_children
 
     @property
     def tuple_tree(self):
-        if self.is_leaf:
-            return self.name
-        elif self.is_unary:
-            return self.name, self.left.tuple_tree
+        if self.children:
+            return (self.name,) + tuple(child.tuple_tree for child in self.children)
         else:
-            return self.name, self.left.tuple_tree, self.right.tuple_tree
+            return self.name
 
     def apply(self, **kwargs):
         pass
@@ -92,36 +70,51 @@ class FuncNode(object):
     @classmethod
     def from_expr(cls, expr: str):
         name: str
-        left: Optional[FuncNode]
-        right: Optional[FuncNode]
+        children: Optional[List[FuncNode]] = []
+        splits: List[int] = [-1]    # To make sure expr[splits[i] + 1: splits[i + 1]] is expr[:splits[i]] if i == 0
+
         srs: List[Tuple[int, int]] = cls.subs_ranges(expr)
         while len(srs) == 1 and expr[0] == '(' and expr[-1] == ')':  # strip the outermost redundant parentheses ^(...)$
-            expr = expr[1:len(expr)-1]
+            expr = expr[1:len(expr) - 1]
             srs = cls.subs_ranges(expr)
+
         if len(srs) == 1:
-            right = None
             if expr[-1] == ')':
-                name = cls.regex_wrapping_func_name.match(expr).group('name')
-                left = cls.from_expr(cls.regex_wrapping_func_name.match(expr).group('arg'))
+                wfm = cls.regex_wrapping_func_name.match(expr)
+                name = wfm.group('name')
+                wfm_args = wfm.group('args')
+                wfm_args_subs = cls.subs_ranges(wfm_args)
+                commas = re.finditer(',', wfm_args)
+                if list(commas):
+                    for comma in commas:
+                        c_pos = comma.start()
+                        try:
+                            for sub in wfm_args_subs:
+                                if sub[0] < c_pos < sub[1]:
+                                    raise IndexError
+                            splits.append(comma.start())
+                        except IndexError:
+                            pass
+                    for i in range(len(splits) - 1):
+                        children.append(cls.from_expr(expr[splits[i] + 1: splits[i + 1]]))
+                else:
+                    children.append(cls.from_expr(wfm_args))
             else:
                 name = expr
-                left = None
+                children = None
         else:
-            split: int = -1
-            try:
-                for opr in [['+', '-'], ['*', '/'], ['^']]:
-                    for sr in srs[:-1]:
-                        if expr[sr[1]] in opr:
-                            split = sr[1]
-                            raise IndexError
-            except IndexError:
-                pass
-            assert split > 0
-            name = expr[split]
-            left = cls.from_expr(expr[:split])
-            right = cls.from_expr(expr[split+1:])
+            for opr in [['+', '-'], ['*', '/'], ['^']]:
+                for sr in srs[:-1]:
+                    if expr[sr[1]] in opr:
+                        splits.append(sr[1])
+                if len(splits) > 1:
+                    break
+            splits.append(len(expr))
+            name = expr[splits[1]]
+            for i in range(len(splits) - 1):
+                children.append(cls.from_expr(expr[splits[i] + 1: splits[i + 1]]))
         assert name is not None
-        return FuncNode(name, left, right)
+        return FuncNode(name, children)
 
     @classmethod
     def subs_ranges(cls, expr: str) -> List[Tuple[int, int]]:
@@ -190,6 +183,5 @@ class FuncEx(object):
         assert len(args) <= len(self.vars)
 
 
-
 if __name__ == '__main__':
-    print(FuncEx(eg_f).tuple_tree, len(eg_cc))
+    print(FuncEx(eg_c).tuple_tree)
