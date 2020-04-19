@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="19be9995-633d-4c17-bbd7-647bca99879b" name="Default Changelist" comment="04/18 add an inner class Func">
+    <list default="true" id="19be9995-633d-4c17-bbd7-647bca99879b" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/dictionaries/admin.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dictionaries/admin.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/funcexing.py" beforeDir="false" afterPath="$PROJECT_DIR$/funcexing.py" afterDir="false" />
     </list>

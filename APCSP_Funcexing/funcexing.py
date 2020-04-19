@@ -3,7 +3,8 @@
 # AP Computer Science Principles
 # 9 April 2020
 import re
-from typing import List, Optional, Union, Tuple, Callable
+import math
+from typing import List, Optional, Union, Tuple, Dict, Callable
 
 # standard examples
 eg_f = 'f(x)=cos(e^x-x^2)*ln(x/2)'  # classic
@@ -21,22 +22,56 @@ eg_ = 'cos(e^x-x^2)*ln(x/2)'  # The name of the function will be None
 eg_p = 'p(x)=cos(e^x-x^2)*ln(x/2))'  # unbalanced parentheses
 
 
+class Func(object):
+    constants: Dict[str, Union[int, float]] = {
+        'e': math.e,
+        'pi': math.pi
+    }
+
+    def __init__(self, name: Union[str, float], function: Callable, derivative: Callable):
+        if isinstance(name, str):
+            try:
+                name = float(name)
+            except ValueError:
+                pass
+        self._name: Union[float, str] = name
+        self._apply: Callable = function
+        self._derivative: Callable[[str], Func] = derivative
+
+    @classmethod
+    def constant(cls, cons: float):
+        def cons_func(*args):
+            assert args is not None
+            return cons
+
+        def d_cons_func(var):
+            assert isinstance(var, str)
+            return 0
+
+        return Func(cons, cons_func, d_cons_func)
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def isnumeric(self):
+        return isinstance(self.name, float)
+
+    @property
+    def isconstant(self):
+        return self.isnumeric or self.name in self.__class__.constants
+
+    def __call__(self, *args):
+        return self._apply(*args)
+
+    def derivative(self, var: str):
+        return self._derivative(var)
+
+
 class FuncNode(object):
     regex_pre_naked_subs = re.compile(r'\w+(?=[,+*/^-])|(?:(?<=[,+*/^-])|^)\w+$')
     regex_wrapping_func_name = re.compile(r'^(?P<name>[A-Za-z]+)\((?P<args>.+)\)$')
-
-    class Func(object):
-        conventional_functions: List[str] = []
-
-        def __init__(self, name):
-            self._name = name
-
-        @property
-        def name(self):
-            return self._name
-
-        def apply(self):
-            pass
 
     def __init__(self, name: str, children: Optional[list] = None):
         if children is None:
@@ -69,9 +104,9 @@ class FuncNode(object):
 
     @classmethod
     def from_expr(cls, expr: str):
-        name: str
+        name: Optional[str] = None
         children: Optional[List[FuncNode]] = []
-        splits: List[int] = [-1]    # To make sure expr[splits[i] + 1: splits[i + 1]] is expr[:splits[i]] if i == 0
+        splits: List[int] = [-1]  # To make sure expr[splits[i] + 1: splits[i + 1]] is expr[:splits[i]] if i == 0
 
         srs: List[Tuple[int, int]] = cls.subs_ranges(expr)
         while len(srs) == 1 and expr[0] == '(' and expr[-1] == ')':  # strip the outermost redundant parentheses ^(...)$
@@ -105,12 +140,18 @@ class FuncNode(object):
         else:
             for opr in [['+', '-'], ['*', '/'], ['^']]:
                 for sr in srs[:-1]:
-                    if expr[sr[1]] in opr:
-                        splits.append(sr[1])
+                    selected_opr = expr[sr[1]]
+                    if selected_opr in opr:
+                        if name is None:
+                            if selected_opr not in ['+', '-'] and expr[0] == '-':
+                                # special condition: negative function
+                                return FuncNode('-', [cls.from_expr(expr[1:])])
+                            name = selected_opr
+                        if expr[sr[1]] == name:
+                            splits.append(sr[1])
                 if len(splits) > 1:
                     break
             splits.append(len(expr))
-            name = expr[splits[1]]
             for i in range(len(splits) - 1):
                 children.append(cls.from_expr(expr[splits[i] + 1: splits[i + 1]]))
         assert name is not None
@@ -184,4 +225,4 @@ class FuncEx(object):
 
 
 if __name__ == '__main__':
-    print(FuncEx(eg_c).tuple_tree)
+    print(FuncEx('-(x+y-z*1/2)/x').tuple_tree)
