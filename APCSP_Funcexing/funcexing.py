@@ -2,13 +2,14 @@
 # Mr. Thierfelder
 # AP Computer Science Principles
 # 9 April 2020
+# (independent development)
 import re
 import math
 from typing import List, Optional, Union, Tuple, Dict, Callable
 
 # standard examples
 eg_f = 'f(x)=cos(e^x-x^2)*ln(x/2)'  # classic
-eg_g = 'g(x)=(sin(x-e^(x^(x-1))+1)/x)+(x*e^(x+1)+1)-1'  # lots of parentheses
+eg_g = 'g(x)=-(sin(x-e^(x^(x-1))+1)/x)+(x*e^(x+1)+1)-1'  # lots of parentheses
 eg_a = 'a(t)=cos(e^t-t^2)*ln(t/2)'  # a different independent variable
 eg_b = 'b(x)=(sin(x-e^(x^(n-1))+1)/n)+m'  # some unbounded constant
 eg_F = 'F(x,y)=(sin(x-e^(y^(x-1))+1)/y)+x'  # multivariate function
@@ -71,7 +72,7 @@ class Func(object):
 
 class FuncNode(object):
     regex_pre_naked_subs = re.compile(r'\w+(?=[,+*/^-])|(?:(?<=[,+*/^-])|^)\w+$')
-    regex_wrapping_func_name = re.compile(r'^(?P<name>[A-Za-z]+)\((?P<args>.+)\)$')
+    regex_wrapping_func_name = re.compile(r'^(?P<name>[A-Za-z]+|-)\((?P<args>.+)\)$')
 
     def __init__(self, name: str, children: Optional[list] = None):
         if children is None:
@@ -106,10 +107,12 @@ class FuncNode(object):
     def from_expr(cls, expr: str):
         name: Optional[str] = None
         children: Optional[List[FuncNode]] = []
-        splits: List[int] = [-1]  # To make sure expr[splits[i] + 1: splits[i + 1]] is expr[:splits[i]] if i == 0
+        splits: List[int] = [-1]
+        # To make sure expr[splits[i] + 1: splits[i + 1]] is expr[:splits[i]] if i == 0
 
         srs: List[Tuple[int, int]] = cls.subs_ranges(expr)
-        while len(srs) == 1 and expr[0] == '(' and expr[-1] == ')':  # strip the outermost redundant parentheses ^(...)$
+        while len(srs) == 1 and expr[0] == '(' and expr[-1] == ')':
+            # strip the outermost redundant parentheses ^(...)$
             expr = expr[1:len(expr) - 1]
             srs = cls.subs_ranges(expr)
 
@@ -225,4 +228,4 @@ class FuncEx(object):
 
 
 if __name__ == '__main__':
-    print(FuncEx('-(x+y-z*1/2)/x').tuple_tree)
+    print(FuncEx(eg_g).tuple_tree)
