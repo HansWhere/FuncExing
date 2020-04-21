@@ -5,6 +5,7 @@
 # (independent development)
 import re
 import math
+from abc import ABCMeta, abstractmethod, abstractproperty
 from typing import List, Optional, Union, Tuple, Dict, Callable
 
 # standard examples
@@ -23,7 +24,7 @@ eg_ = 'cos(e^x-x^2)*ln(x/2)'  # The name of the function will be None
 eg_p = 'p(x)=cos(e^x-x^2)*ln(x/2))'  # unbalanced parentheses
 
 
-class Func(object):
+class Func(metaclass=ABCMeta):
     constants: Dict[str, Union[int, float]] = {
         'e': math.e,
         'pi': math.pi
@@ -110,11 +111,8 @@ class FuncNode(object):
         splits: List[int] = [-1]
         # To make sure expr[splits[i] + 1: splits[i + 1]] is expr[:splits[i]] if i == 0
 
+        expr = cls.strip_redundant_parentheses(expr)
         srs: List[Tuple[int, int]] = cls.subs_ranges(expr)
-        while len(srs) == 1 and expr[0] == '(' and expr[-1] == ')':
-            # strip the outermost redundant parentheses ^(...)$
-            expr = expr[1:len(expr) - 1]
-            srs = cls.subs_ranges(expr)
 
         if len(srs) == 1:
             if expr[-1] == ')':
@@ -189,6 +187,30 @@ class FuncNode(object):
             return [sub.span() for sub in pre_naked_subs]
         return sorted(naked_subs + wrapped_subs)
 
+    @classmethod
+    def strip_redundant_parentheses(cls, expr):
+        while len(cls.subs_ranges(expr)) == 1 and expr[0] == '(' and expr[-1] == ')':
+            # strip the outermost redundant parentheses ^(...)$
+            expr = expr[1:len(expr) - 1]
+        return expr
+
+    @classmethod
+    def split_by(cls, expr: str, opr: Tuple[str]):
+        name: Optional[str] = None
+        srs: List[Tuple[int, int]] = cls.subs_ranges(expr)
+        splits: List[int] = [-1]
+
+        for sr in srs[:-1]:
+            selected_opr = expr[sr[1]]
+            if selected_opr in opr:
+                if name is None:
+                    if selected_opr not in ['+', '-'] and expr[0] == '-':
+                        # special condition: negative function
+                        return FuncNode('-', [cls.from_expr(expr[1:])])
+                    name = selected_opr
+                if expr[sr[1]] == name:
+                    splits.append(sr[1])
+
 
 class FuncEx(object):
     regex_heading = re.compile(
@@ -228,4 +250,4 @@ class FuncEx(object):
 
 
 if __name__ == '__main__':
-    print(FuncEx(eg_g).tuple_tree)
+    print(eg_g, FuncEx(eg_g).tuple_tree, sep='\n')

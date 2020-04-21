@@ -133,7 +133,14 @@
       <option name="project" value="LOCAL" />
       <updated>1587338017537</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="04/19 fix a small bug in the regex">
+      <created>1587423996844</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1587423996846</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -164,6 +171,7 @@
     <MESSAGE value="add some properties" />
     <MESSAGE value="04/18 add an inner class Func" />
     <MESSAGE value="04/19 add a class Func" />
-    <option name="LAST_COMMIT_MESSAGE" value="04/19 add a class Func" />
+    <MESSAGE value="04/19 fix a small bug in the regex" />
+    <option name="LAST_COMMIT_MESSAGE" value="04/19 fix a small bug in the regex" />
   </component>
 </project>
