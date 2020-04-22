@@ -5,7 +5,7 @@
 # (independent development)
 import re
 import math
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod
 from typing import List, Optional, Union, Tuple, Dict, Callable
 
 # standard examples
@@ -24,51 +24,70 @@ eg_ = 'cos(e^x-x^2)*ln(x/2)'  # The name of the function will be None
 eg_p = 'p(x)=cos(e^x-x^2)*ln(x/2))'  # unbalanced parentheses
 
 
-class Func(metaclass=ABCMeta):
-    constants: Dict[str, Union[int, float]] = {
-        'e': math.e,
-        'pi': math.pi
-    }
-
-    def __init__(self, name: Union[str, float], function: Callable, derivative: Callable):
-        if isinstance(name, str):
-            try:
-                name = float(name)
-            except ValueError:
-                pass
-        self._name: Union[float, str] = name
-        self._apply: Callable = function
-        self._derivative: Callable[[str], Func] = derivative
-
-    @classmethod
-    def constant(cls, cons: float):
-        def cons_func(*args):
-            assert args is not None
-            return cons
-
-        def d_cons_func(var):
-            assert isinstance(var, str)
-            return 0
-
-        return Func(cons, cons_func, d_cons_func)
+class IFunc(metaclass=ABCMeta):
+    def __init__(self, *args: 'IFunc'):
+        assert all(isinstance(arg, IFunc) for arg in args)
+        self._vars: Tuple[IFunc, ...] = args
 
     @property
-    def name(self):
-        return self._name
+    def vars(self) -> Tuple['IFunc',...]:
+        return self._vars
 
     @property
-    def isnumeric(self):
-        return isinstance(self.name, float)
+    @abstractmethod
+    def val(self) -> Union[str, int, float]:
+        pass
+
+    @abstractmethod
+    def derivative(self, var: str) -> 'IFunc':
+        pass
+
+    def apply(self, **kwargs: 'IFunc') -> 'IFunc':
+        new_func: IFunc = self.__new__(self.__class__)
+        new_func.__init__(*(var.apply(**kwargs) for var in self.vars))
+        return new_func
+
+    def __call__(self, **kwargs: 'IFunc') -> 'IFunc':
+        return self.apply(**kwargs)
+
+    def __eq__(self, other: 'IFunc') -> bool:
+        return self.__class__ == other.__class__ and self.vars == other.vars
+
+
+class Element(IFunc):
+    def __init__(self, val: Union[str, int, float]):
+        self._val: Union[str, int, float] = val
+        self._vars = None
 
     @property
-    def isconstant(self):
-        return self.isnumeric or self.name in self.__class__.constants
+    def val(self) -> Union[str, int, float]:
+        return self._val
 
-    def __call__(self, *args):
-        return self._apply(*args)
+    def apply(self, **kwargs: 'IFunc') -> 'IFunc':
+        return kwargs[self.val] if self.val in kwargs else None
+
+    def derivative(self, var: str) -> 'IFunc':
+        return Element(1 if self.val == var else 0)
+
+    def __eq__(self, other: 'IFunc') -> bool:
+        return self.val == other.val
+
+
+class Add(IFunc):
+    @property
+    def val(self) -> Union[str, int, float]:
+        if all(isinstance(var.val, (int, float)) for var in self.vars):
+            return sum(var.val for var in self.vars)
+        else:
+            return '+'.join(str(var.val) for var in self.vars)
 
     def derivative(self, var: str):
-        return self._derivative(var)
+        return Add(*(v.derivative(var) for v in self.vars))
+
+    def __eq__(self, other: 'IFunc') -> bool:
+        return self.__class__ == other.__class__ and\
+               all(var in other.vars for var in self.vars) and\
+               all(var in self.vars for var in other.vars)
 
 
 class FuncNode(object):
@@ -91,7 +110,7 @@ class FuncNode(object):
 
     @children.setter
     def children(self, new_children):
-        assert isinstance(new_children, FuncNode) or new_children is None
+        assert isinstance(new_children, FuncNode) or not new_children
         self._children = new_children
 
     @property
