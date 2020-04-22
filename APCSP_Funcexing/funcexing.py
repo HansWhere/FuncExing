@@ -6,6 +6,8 @@
 import re
 import math
 from abc import ABCMeta, abstractmethod
+from copy import deepcopy
+from functools import reduce
 from typing import List, Optional, Union, Tuple, Dict, Callable
 
 # standard examples
@@ -53,6 +55,9 @@ class IFunc(metaclass=ABCMeta):
     def __eq__(self, other: 'IFunc') -> bool:
         return self.__class__ == other.__class__ and self.vars == other.vars
 
+    def __str__(self) -> str:
+        return '(' + self.val + ')'
+
 
 class Element(IFunc):
     def __init__(self, val: Union[str, int, float]):
@@ -72,6 +77,9 @@ class Element(IFunc):
     def __eq__(self, other: 'IFunc') -> bool:
         return self.val == other.val
 
+    def __str__(self) -> str:
+        return self.val
+
 
 class Add(IFunc):
     @property
@@ -83,6 +91,24 @@ class Add(IFunc):
 
     def derivative(self, var: str):
         return Add(*(v.derivative(var) for v in self.vars))
+
+    def __eq__(self, other: 'IFunc') -> bool:
+        return self.__class__ == other.__class__ and\
+               all(var in other.vars for var in self.vars) and\
+               all(var in self.vars for var in other.vars)
+
+
+class Multiply(IFunc):
+    @property
+    def val(self) -> Union[str, int, float]:
+        if all(isinstance(var.val, (int, float)) for var in self.vars):
+            return reduce(lambda x, y: x*y, (var.val for var in self.vars))
+        else:
+            return '*'.join(str(var.val) for var in self.vars)
+
+    def derivative(self, var: str):
+        vars_: Tuple['IFunc'] = self.vars
+        return Add(*(vars_[:n] + vars_[n].derivative + vars_[n+1:] for n in range(len(vars_))))
 
     def __eq__(self, other: 'IFunc') -> bool:
         return self.__class__ == other.__class__ and\

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="19be9995-633d-4c17-bbd7-647bca99879b" name="Default Changelist" comment="">
+    <list default="true" id="19be9995-633d-4c17-bbd7-647bca99879b" name="Default Changelist" comment="04/21 before reconstruction, add IFunc abstract class">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/funcexing.py" beforeDir="false" afterPath="$PROJECT_DIR$/funcexing.py" afterDir="false" />
     </list>
@@ -147,7 +147,14 @@
       <option name="project" value="LOCAL" />
       <updated>1587504244186</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="04/21 before reconstruction, add IFunc abstract class">
+      <created>1587516739518</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1587516739518</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -180,6 +187,7 @@
     <MESSAGE value="04/19 add a class Func" />
     <MESSAGE value="04/19 fix a small bug in the regex" />
     <MESSAGE value="04/21 before reconstruction" />
-    <option name="LAST_COMMIT_MESSAGE" value="04/21 before reconstruction" />
+    <MESSAGE value="04/21 before reconstruction, add IFunc abstract class" />
+    <option name="LAST_COMMIT_MESSAGE" value="04/21 before reconstruction, add IFunc abstract class" />
   </component>
 </project>
