@@ -2,7 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="19be9995-633d-4c17-bbd7-647bca99879b" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/dictionaries/admin.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dictionaries/admin.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/funcexing.py" beforeDir="false" afterPath="$PROJECT_DIR$/funcexing.py" afterDir="false" />
     </list>
@@ -45,7 +44,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.test">
+  <component name="RunManager" selected="Python.funcexing">
     <configuration name="funcexing" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="APCSP_FuncInt" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -111,8 +110,8 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.test" />
         <item itemvalue="Python.funcexing" />
+        <item itemvalue="Python.test" />
         <item itemvalue="Python.main" />
       </list>
     </recent_temporary>
@@ -184,7 +183,14 @@
       <option name="project" value="LOCAL" />
       <updated>1587521406902</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="04/23 after reconstruction, haven't started testing yet">
+      <created>1587637456880</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1587637456880</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -219,6 +225,7 @@
     <MESSAGE value="04/21 before reconstruction" />
     <MESSAGE value="04/21 before reconstruction, add IFunc abstract class" />
     <MESSAGE value="04/21 before reconstruction, add Multiply class" />
-    <option name="LAST_COMMIT_MESSAGE" value="04/21 before reconstruction, add Multiply class" />
+    <MESSAGE value="04/23 after reconstruction, haven't started testing yet" />
+    <option name="LAST_COMMIT_MESSAGE" value="04/23 after reconstruction, haven't started testing yet" />
   </component>
 </project>

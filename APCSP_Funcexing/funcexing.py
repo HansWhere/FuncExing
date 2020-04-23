@@ -51,18 +51,17 @@ class IFunc(metaclass=ABCMeta):
         return '({})'.format(str(self.val))
 
 
-class UnaryMixIn(IFunc, ABC):
+class IUnaryFunc(IFunc, ABC):
     def __init__(self, arg: 'IFunc'):
         assert isinstance(arg, IFunc)
         self._vars: Tuple[IFunc, ...] = (arg,)
 
     @property
-    def var(self):
+    def var(self) -> IFunc:
         return self.vars[0]
 
 
 class Element(IFunc):
-
     def __init__(self, val: Union[str, int, float]):
         self._val: Union[str, int, float] = val
         self._vars = None
@@ -72,7 +71,7 @@ class Element(IFunc):
         return self._val
 
     def apply(self, **kwargs: 'IFunc') -> 'IFunc':
-        return kwargs[self.val] if self.val in kwargs else None
+        return Element(kwargs[self.val] if self.val in kwargs else self.val)
 
     def derivative(self, var: str) -> 'IFunc':
         return Element(1 if self.val == var else 0)
@@ -92,7 +91,7 @@ class Add(IFunc):
         else:
             return '+'.join(str(var.val) for var in self.vars)
 
-    def derivative(self, var: str):
+    def derivative(self, var: str) -> IFunc:
         return Add(*(v.derivative(var) for v in self.vars))
 
     def __eq__(self, other: 'IFunc') -> bool:
@@ -101,7 +100,7 @@ class Add(IFunc):
                all(var in self.vars for var in other.vars)
 
 
-class Negative(IFunc, UnaryMixIn):
+class Negative(IUnaryFunc):
     @property
     def val(self) -> Union[str, int, float]:
         if all(isinstance(var.val, (int, float)) for var in self.vars):
@@ -109,7 +108,7 @@ class Negative(IFunc, UnaryMixIn):
         else:
             return '(-{})'.format(str(self.var.val))
 
-    def derivative(self, var: str):
+    def derivative(self, var: str) -> IFunc:
         return Negative(self.var.derivative(var))
 
 
@@ -119,9 +118,9 @@ class Multiply(IFunc):
         if all(isinstance(var.val, (int, float)) for var in self.vars):
             return reduce(lambda x, y: x * y, (var.val for var in self.vars))
         else:
-            return '*'.join(str(var.val) for var in self.vars)
+            return '*'.join('({})'.format(str(var.val)) for var in self.vars)
 
-    def derivative(self, var: str):
+    def derivative(self, var: str) -> IFunc:
         vars_: Tuple['IFunc'] = self.vars
         return Add(*(vars_[:n] + vars_[n].derivative + vars_[n + 1:] for n in range(len(vars_))))
 
@@ -131,7 +130,7 @@ class Multiply(IFunc):
                all(var in self.vars for var in other.vars)
 
 
-class Reciprocal(IFunc, UnaryMixIn):
+class Reciprocal(IUnaryFunc):
     @property
     def val(self) -> Union[str, int, float]:
         if all(isinstance(var.val, (int, float)) for var in self.vars):
@@ -139,21 +138,24 @@ class Reciprocal(IFunc, UnaryMixIn):
         else:
             return '1/({})'.format(str(self.var.val))
 
-    def derivative(self, var: str):
+    def derivative(self, var: str) -> IFunc:
         return Negative(Multiply(self.var.derivative(var), Reciprocal(Power(self.var, Element(2)))))
 
 
 class Power(IFunc):
     def __init__(self, base: IFunc, *nested_exponents: IFunc):
         assert isinstance(base, IFunc) and all(isinstance(index, IFunc) for index in nested_exponents)
-        self._vars: Tuple[IFunc, IFunc] = (base, Power(*nested_exponents))
+        if len(nested_exponents) > 1:
+            self._vars: Tuple[IFunc, IFunc] = (base, Power(*nested_exponents))
+        elif len(nested_exponents) == 1:
+            self._vars: Tuple[IFunc, IFunc] = (base, nested_exponents[0])
 
     @property
-    def base(self):
+    def base(self) -> IFunc:
         return self._vars[0]
 
     @property
-    def exponent(self):
+    def exponent(self) -> IFunc:
         return self._vars[1]
 
     @property
@@ -163,13 +165,13 @@ class Power(IFunc):
         else:
             return '{}^({})'.format(self.base, self.exponent)
 
-    def derivative(self, var: str):
+    def derivative(self, var: str) -> IFunc:
         return \
             Add(
                 Multiply(
                     self.exponent.derivative(var),
                     Ln(self.base),
-                    self,
+                    self
                 ),
                 Multiply(
                     self.exponent,
@@ -186,11 +188,11 @@ class Log(IFunc):
         self._vars: Tuple[IFunc, IFunc] = (base, antilog)
 
     @property
-    def base(self):
+    def base(self) -> IFunc:
         return self._vars[0]
 
     @property
-    def antilog(self):
+    def antilog(self) -> IFunc:
         return self._vars[1]
 
     @property
@@ -200,7 +202,7 @@ class Log(IFunc):
         else:
             return 'log({},{})'.format(self.base, self.antilog)
 
-    def derivative(self, var: str):
+    def derivative(self, var: str) -> IFunc:
         return \
             Multiply(
                 Add(
@@ -224,21 +226,40 @@ class Log(IFunc):
             )
 
 
-class Ln(Log, UnaryMixIn):
+class Ln(Log, IUnaryFunc):
     def __init__(self, antilog: IFunc):
-        base = Element(math.e)
-        super().__init__(base, antilog)
+        assert isinstance(antilog, IFunc)
+        self._vars = (antilog,)
+
+    @property
+    def base(self) -> IFunc:
+        return Element(math.e)
+
+    @property
+    def antilog(self) -> IFunc:
+        return self.var
+
+    @property
+    def val(self) -> Union[str, int, float]:
+        if all(isinstance(var.val, (int, float)) for var in self.vars):
+            return math.log(self.antilog.val)
+        else:
+            return 'ln({})'.format(self.antilog)
+
+    def derivative(self, var: str) -> IFunc:
+        return Multiply(self.antilog.derivative(var), self.antilog)
 
 
 class MyFunc(object):
     traditional_functions: Dict[str, type] = {
         'log': Log,
+        'ln': Ln
     }
     __all: Dict[str, 'MyFunc'] = {}
     regex_heading = re.compile(
         r'^(?P<head>(?P<name>[a-zA-z]+)\((?P<parameters>(?:[a-z],)*[a-z])\)=)?(?P<expression>.*)$')
     regex_pre_naked_subs = re.compile(r'\w+(?=[,+*/^-])|(?:(?<=[,+*/^-])|^)\w+$')
-    regex_outermost_func_name = re.compile(r'^(?P<name>[A-Za-z])\((?P<args>.+)\)$')
+    regex_outermost_func_name = re.compile(r'^(?P<name>[A-Za-z]+)\((?P<args>.+)\)$')
 
     def __init__(self, analytic: IFunc, parameters: Tuple[str, ...] = (), name: Optional[str] = None):
         self._name: Optional[str] = name
@@ -348,14 +369,14 @@ class MyFunc(object):
                 break
         splits.append(len(expr))
         return {'+': Add, '-': Add, '*': Multiply, '/': Multiply, '^': Power}[name] \
-            (*(cls.from_expr(expr[splits[i]: splits[i + 1]]) for i in range(len(splits) - 1)))
+            (*(cls.__expr_from_expr(expr[splits[i]: splits[i + 1]]) for i in range(len(splits) - 1)))
 
     @classmethod
     def __expr_from_expr(cls, expr: str) -> IFunc:
         expr = cls.__strip_redundant_parentheses(expr)
         subexpression_ranges: List[Tuple[int, int]] = cls.__subexpression_ranges(expr)
         if len(subexpression_ranges) == 1:
-            if expr[0] in {'+', '*'}:
+            if expr[0] in {'+', '*', '^'}:
                 return cls.__expr_from_expr(expr[1:])
             elif expr[0] == '-':
                 return Negative(cls.__expr_from_expr(expr[1:]))
@@ -363,14 +384,15 @@ class MyFunc(object):
                 return Reciprocal(cls.__expr_from_expr(expr[1:]))
             elif expr[-1] == ')':
                 outermost_func: Optional[Match[str]] = cls.regex_outermost_func_name.match(expr)
+                assert outermost_func is not None
                 outermost_func_name: str = outermost_func.group('name')
                 outermost_func_args: List[str] = cls.__comma_split(outermost_func.group('args'))
                 if outermost_func_name in cls.traditional_functions:
                     return cls.traditional_functions[outermost_func_name](
-                        *(cls.__expr_from_expr(arg)) for arg in outermost_func_args)
+                        *(cls.__expr_from_expr(arg) for arg in outermost_func_args))
                 elif outermost_func_name in cls.__all:
                     return cls.__all[outermost_func_name](
-                        *(cls.__expr_from_expr(arg)) for arg in outermost_func_args)
+                        *(cls.__expr_from_expr(arg) for arg in outermost_func_args))
                 else:
                     raise ValueError
             else:
@@ -380,12 +402,14 @@ class MyFunc(object):
 
     @classmethod
     def from_expr(cls, origin_str: str) -> 'MyFunc':
-        head: Optional = cls.__class__.regex_heading.match(re.sub(r'\s', '', origin_str))
-        return MyFunc(cls.__expr_from_expr(head.group('expression')),
-                      tuple(head.group('parameters').split(',') if head is None else ['x']),
+        head: Optional = cls.regex_heading.match(re.sub(r'\s', '', origin_str))
+        analytic = cls.__expr_from_expr(head.group('expression'))
+        parameters = tuple(head.group('parameters').split(',') if head is None else ['x'])
+        return MyFunc(analytic,
+                      parameters,
                       head.group('name')
                       )
 
 
 if __name__ == '__main__':
-    pass
+    print('Hello: ', MyFunc.from_expr('f(x)=a+x^(2*x+ln(1))')('x').val)
