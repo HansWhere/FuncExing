@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="19be9995-633d-4c17-bbd7-647bca99879b" name="Default Changelist" comment="04/21 before reconstruction, add IFunc abstract class">
+    <list default="true" id="19be9995-633d-4c17-bbd7-647bca99879b" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/dictionaries/admin.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dictionaries/admin.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/funcexing.py" beforeDir="false" afterPath="$PROJECT_DIR$/funcexing.py" afterDir="false" />
     </list>
@@ -44,7 +45,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.funcexing">
+  <component name="RunManager" selected="Python.test">
     <configuration name="funcexing" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="APCSP_FuncInt" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -87,8 +88,30 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="test" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="APCSP_FuncInt" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/test.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.test" />
         <item itemvalue="Python.funcexing" />
         <item itemvalue="Python.main" />
       </list>
@@ -154,7 +177,14 @@
       <option name="project" value="LOCAL" />
       <updated>1587516739518</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="04/21 before reconstruction, add Multiply class">
+      <created>1587521406901</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1587521406902</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -188,6 +218,7 @@
     <MESSAGE value="04/19 fix a small bug in the regex" />
     <MESSAGE value="04/21 before reconstruction" />
     <MESSAGE value="04/21 before reconstruction, add IFunc abstract class" />
-    <option name="LAST_COMMIT_MESSAGE" value="04/21 before reconstruction, add IFunc abstract class" />
+    <MESSAGE value="04/21 before reconstruction, add Multiply class" />
+    <option name="LAST_COMMIT_MESSAGE" value="04/21 before reconstruction, add Multiply class" />
   </component>
 </project>

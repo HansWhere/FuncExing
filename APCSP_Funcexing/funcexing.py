@@ -5,25 +5,15 @@
 # (independent development)
 import re
 import math
-from abc import ABCMeta, abstractmethod
-from copy import deepcopy
+from abc import ABCMeta, abstractmethod, ABC
 from functools import reduce
-from typing import List, Optional, Union, Tuple, Dict, Callable
+from typing import List, Optional, Union, Tuple, Dict, Callable, Any, Match
 
-# standard examples
+
 eg_f = 'f(x)=cos(e^x-x^2)*ln(x/2)'  # classic
 eg_g = 'g(x)=-(sin(x-e^(x^(x-1))+1)/x)+(x*e^(x+1)+1)-1'  # lots of parentheses
-eg_a = 'a(t)=cos(e^t-t^2)*ln(t/2)'  # a different independent variable
-eg_b = 'b(x)=(sin(x-e^(x^(n-1))+1)/n)+m'  # some unbounded constant
-eg_F = 'F(x,y)=(sin(x-e^(y^(x-1))+1)/y)+x'  # multivariate function
-# non-standard examples
-eg_h = 'h(x) = sin(x *  cos(x ))* x^2 + e^x + 1'  # unnecessary spaces
 eg_c = 'c(x)=(cos((e^x)-(x^2))*(ln(x/2)))+x*2^x'  # unnecessary parentheses
 eg_cc = '(cos((e^x)-(x^2))*(ln(x/2)))+x*2^x'
-eg_G = 'G=(sin(x-e^(x^(n-1))+1)/n)+m'  # The independent variable is 'x' by default
-eg_ = 'cos(e^x-x^2)*ln(x/2)'  # The name of the function will be None
-# wrong examples
-eg_p = 'p(x)=cos(e^x-x^2)*ln(x/2))'  # unbalanced parentheses
 
 
 class IFunc(metaclass=ABCMeta):
@@ -32,7 +22,7 @@ class IFunc(metaclass=ABCMeta):
         self._vars: Tuple[IFunc, ...] = args
 
     @property
-    def vars(self) -> Tuple['IFunc',...]:
+    def vars(self) -> Tuple['IFunc', ...]:
         return self._vars
 
     @property
@@ -53,13 +43,26 @@ class IFunc(metaclass=ABCMeta):
         return self.apply(**kwargs)
 
     def __eq__(self, other: 'IFunc') -> bool:
+        # It is almost impossible to check whether two elementary function are equal
+        # So this only represents that the two functions are formally equal
         return self.__class__ == other.__class__ and self.vars == other.vars
 
     def __str__(self) -> str:
-        return '(' + self.val + ')'
+        return '({})'.format(str(self.val))
+
+
+class UnaryMixIn(IFunc, ABC):
+    def __init__(self, arg: 'IFunc'):
+        assert isinstance(arg, IFunc)
+        self._vars: Tuple[IFunc, ...] = (arg,)
+
+    @property
+    def var(self):
+        return self.vars[0]
 
 
 class Element(IFunc):
+
     def __init__(self, val: Union[str, int, float]):
         self._val: Union[str, int, float] = val
         self._vars = None
@@ -78,7 +81,7 @@ class Element(IFunc):
         return self.val == other.val
 
     def __str__(self) -> str:
-        return self.val
+        return str(self.val)
 
 
 class Add(IFunc):
@@ -93,118 +96,181 @@ class Add(IFunc):
         return Add(*(v.derivative(var) for v in self.vars))
 
     def __eq__(self, other: 'IFunc') -> bool:
-        return self.__class__ == other.__class__ and\
-               all(var in other.vars for var in self.vars) and\
+        return self.__class__ == other.__class__ and \
+               all(var in other.vars for var in self.vars) and \
                all(var in self.vars for var in other.vars)
+
+
+class Negative(IFunc, UnaryMixIn):
+    @property
+    def val(self) -> Union[str, int, float]:
+        if all(isinstance(var.val, (int, float)) for var in self.vars):
+            return -self.var.val
+        else:
+            return '(-{})'.format(str(self.var.val))
+
+    def derivative(self, var: str):
+        return Negative(self.var.derivative(var))
 
 
 class Multiply(IFunc):
     @property
     def val(self) -> Union[str, int, float]:
         if all(isinstance(var.val, (int, float)) for var in self.vars):
-            return reduce(lambda x, y: x*y, (var.val for var in self.vars))
+            return reduce(lambda x, y: x * y, (var.val for var in self.vars))
         else:
             return '*'.join(str(var.val) for var in self.vars)
 
     def derivative(self, var: str):
         vars_: Tuple['IFunc'] = self.vars
-        return Add(*(vars_[:n] + vars_[n].derivative + vars_[n+1:] for n in range(len(vars_))))
+        return Add(*(vars_[:n] + vars_[n].derivative + vars_[n + 1:] for n in range(len(vars_))))
 
     def __eq__(self, other: 'IFunc') -> bool:
-        return self.__class__ == other.__class__ and\
-               all(var in other.vars for var in self.vars) and\
+        return self.__class__ == other.__class__ and \
+               all(var in other.vars for var in self.vars) and \
                all(var in self.vars for var in other.vars)
 
 
-class FuncNode(object):
-    regex_pre_naked_subs = re.compile(r'\w+(?=[,+*/^-])|(?:(?<=[,+*/^-])|^)\w+$')
-    regex_wrapping_func_name = re.compile(r'^(?P<name>[A-Za-z]+|-)\((?P<args>.+)\)$')
+class Reciprocal(IFunc, UnaryMixIn):
+    @property
+    def val(self) -> Union[str, int, float]:
+        if all(isinstance(var.val, (int, float)) for var in self.vars):
+            return -self.var.val
+        else:
+            return '1/({})'.format(str(self.var.val))
 
-    def __init__(self, name: str, children: Optional[list] = None):
-        if children is None:
-            children = []
-        self._name: str = name
-        self._children: List[FuncNode] = children
+    def derivative(self, var: str):
+        return Negative(Multiply(self.var.derivative(var), Reciprocal(Power(self.var, Element(2)))))
+
+
+class Power(IFunc):
+    def __init__(self, base: IFunc, *nested_exponents: IFunc):
+        assert isinstance(base, IFunc) and all(isinstance(index, IFunc) for index in nested_exponents)
+        self._vars: Tuple[IFunc, IFunc] = (base, Power(*nested_exponents))
+
+    @property
+    def base(self):
+        return self._vars[0]
+
+    @property
+    def exponent(self):
+        return self._vars[1]
+
+    @property
+    def val(self) -> Union[str, int, float]:
+        if all(isinstance(var.val, (int, float)) for var in self.vars):
+            return self.base.val ** self.exponent.val
+        else:
+            return '{}^({})'.format(self.base, self.exponent)
+
+    def derivative(self, var: str):
+        return \
+            Add(
+                Multiply(
+                    self.exponent.derivative(var),
+                    Ln(self.base),
+                    self,
+                ),
+                Multiply(
+                    self.exponent,
+                    self.base.derivative(var),
+                    Reciprocal(self.base),
+                    self
+                ),
+            )
+
+
+class Log(IFunc):
+    def __init__(self, base: IFunc, antilog: IFunc):
+        assert isinstance(base, IFunc) and isinstance(antilog, IFunc)
+        self._vars: Tuple[IFunc, IFunc] = (base, antilog)
+
+    @property
+    def base(self):
+        return self._vars[0]
+
+    @property
+    def antilog(self):
+        return self._vars[1]
+
+    @property
+    def val(self) -> Union[str, int, float]:
+        if all(isinstance(var.val, (int, float)) for var in self.vars):
+            return self.base.val ** self.antilog.val
+        else:
+            return 'log({},{})'.format(self.base, self.antilog)
+
+    def derivative(self, var: str):
+        return \
+            Multiply(
+                Add(
+                    Multiply(
+                        self.antilog.derivative(var),
+                        Ln(self.base),
+                        Reciprocal(self.antilog)
+                    ),
+                    Negative(
+                        Multiply(
+                            self.base.derivative(var),
+                            Ln(self.antilog),
+                            Reciprocal(self.base)
+                        )
+                    )
+                ),
+                Power(
+                    Ln(self.base),
+                    Element(2)
+                )
+            )
+
+
+class Ln(Log, UnaryMixIn):
+    def __init__(self, antilog: IFunc):
+        base = Element(math.e)
+        super().__init__(base, antilog)
+
+
+class MyFunc(object):
+    traditional_functions: Dict[str, type] = {
+        'log': Log,
+    }
+    __all: Dict[str, 'MyFunc'] = {}
+    regex_heading = re.compile(
+        r'^(?P<head>(?P<name>[a-zA-z]+)\((?P<parameters>(?:[a-z],)*[a-z])\)=)?(?P<expression>.*)$')
+    regex_pre_naked_subs = re.compile(r'\w+(?=[,+*/^-])|(?:(?<=[,+*/^-])|^)\w+$')
+    regex_outermost_func_name = re.compile(r'^(?P<name>[A-Za-z])\((?P<args>.+)\)$')
+
+    def __init__(self, analytic: IFunc, parameters: Tuple[str, ...] = (), name: Optional[str] = None):
+        self._name: Optional[str] = name
+        self._analytic: IFunc = analytic
+        self._parameters: Tuple[str, ...] = parameters
+        self.__class__.__all.update({self._name: self})
+
+    def __del__(self):
+        try:
+            self.__class__.__all.pop(self._name)
+        except ValueError:
+            pass
 
     @property
     def name(self):
         return self._name
 
     @property
-    def children(self):
-        return self._children
-
-    @children.setter
-    def children(self, new_children):
-        assert isinstance(new_children, FuncNode) or not new_children
-        self._children = new_children
+    def analytic(self):
+        return self._analytic
 
     @property
-    def tuple_tree(self):
-        if self.children:
-            return (self.name,) + tuple(child.tuple_tree for child in self.children)
-        else:
-            return self.name
+    def parameters(self):
+        return self._parameters
 
-    def apply(self, **kwargs):
-        pass
-
-    @classmethod
-    def from_expr(cls, expr: str):
-        name: Optional[str] = None
-        children: Optional[List[FuncNode]] = []
-        splits: List[int] = [-1]
-        # To make sure expr[splits[i] + 1: splits[i + 1]] is expr[:splits[i]] if i == 0
-
-        expr = cls.strip_redundant_parentheses(expr)
-        srs: List[Tuple[int, int]] = cls.subs_ranges(expr)
-
-        if len(srs) == 1:
-            if expr[-1] == ')':
-                wfm = cls.regex_wrapping_func_name.match(expr)
-                name = wfm.group('name')
-                wfm_args = wfm.group('args')
-                wfm_args_subs = cls.subs_ranges(wfm_args)
-                commas = re.finditer(',', wfm_args)
-                if list(commas):
-                    for comma in commas:
-                        c_pos = comma.start()
-                        try:
-                            for sub in wfm_args_subs:
-                                if sub[0] < c_pos < sub[1]:
-                                    raise IndexError
-                            splits.append(comma.start())
-                        except IndexError:
-                            pass
-                    for i in range(len(splits) - 1):
-                        children.append(cls.from_expr(expr[splits[i] + 1: splits[i + 1]]))
-                else:
-                    children.append(cls.from_expr(wfm_args))
-            else:
-                name = expr
-                children = None
-        else:
-            for opr in [['+', '-'], ['*', '/'], ['^']]:
-                for sr in srs[:-1]:
-                    selected_opr = expr[sr[1]]
-                    if selected_opr in opr:
-                        if name is None:
-                            if selected_opr not in ['+', '-'] and expr[0] == '-':
-                                # special condition: negative function
-                                return FuncNode('-', [cls.from_expr(expr[1:])])
-                            name = selected_opr
-                        if expr[sr[1]] == name:
-                            splits.append(sr[1])
-                if len(splits) > 1:
-                    break
-            splits.append(len(expr))
-            for i in range(len(splits) - 1):
-                children.append(cls.from_expr(expr[splits[i] + 1: splits[i + 1]]))
-        assert name is not None
-        return FuncNode(name, children)
+    def __call__(self, *args: IFunc, **kwargs: IFunc) -> IFunc:
+        n_args: Dict[str, IFunc] = dict(zip(self.parameters, args))
+        n_args.update(kwargs)
+        return self.analytic.apply(**n_args)
 
     @classmethod
-    def subs_ranges(cls, expr: str) -> List[Tuple[int, int]]:
+    def __parentheses_ranges(cls, expr: str) -> List[Tuple[int, int]]:
         stats: int = 0
         wrapped_subs: List[Union[Tuple[int, int], Tuple[int]]] = []
         for index, char in enumerate(expr):
@@ -218,7 +284,11 @@ class FuncNode(object):
                 if stats == 0 and len(wrapped_subs[-1]) == 1:
                     wrapped_subs[-1] += (index + 1,)
         assert not wrapped_subs or len(wrapped_subs[-1]) == 2
+        return wrapped_subs
 
+    @classmethod
+    def __subexpression_ranges(cls, expr: str) -> List[Tuple[int, int]]:
+        wrapped_subs = cls.__parentheses_ranges(expr)
         pre_naked_subs = cls.regex_pre_naked_subs.finditer(expr)
         naked_subs = []
         if wrapped_subs:
@@ -233,66 +303,89 @@ class FuncNode(object):
         return sorted(naked_subs + wrapped_subs)
 
     @classmethod
-    def strip_redundant_parentheses(cls, expr):
-        while len(cls.subs_ranges(expr)) == 1 and expr[0] == '(' and expr[-1] == ')':
+    def __strip_redundant_parentheses(cls, expr):
+        while len(cls.__subexpression_ranges(expr)) == 1 and expr[0] == '(' and expr[-1] == ')':
             # strip the outermost redundant parentheses ^(...)$
             expr = expr[1:len(expr) - 1]
         return expr
 
     @classmethod
-    def split_by(cls, expr: str, opr: Tuple[str]):
+    def __comma_split(cls, exprs: str) -> List[str]:
+        commas = list(re.finditer(',', exprs))
+        splits: List[int] = [0]
+        parentheses_ranges = cls.__parentheses_ranges(exprs)
+        args: List[str] = []
+        if commas:
+            for comma in commas:
+                c_pos = comma.start()
+                try:
+                    for rg in parentheses_ranges:
+                        if rg[0] < c_pos < rg[1]:
+                            raise IndexError
+                    splits.append(comma.start())
+                except IndexError:
+                    pass
+            for i in range(len(splits) - 1):
+                args.append(exprs[splits[i]: splits[i + 1]])
+        else:
+            args.append(exprs)
+        return args
+
+    @classmethod
+    def __outermost_operator_from_expr(cls, expr: str) -> IFunc:
         name: Optional[str] = None
-        srs: List[Tuple[int, int]] = cls.subs_ranges(expr)
-        splits: List[int] = [-1]
+        splits: List[int] = [0]
+        subexpression_ranges: List[Tuple[int, int]] = cls.__subexpression_ranges(expr)
+        for opr in [{'+', '-'}, {'*', '/'}, {'^'}]:
+            for rg in subexpression_ranges[:-1]:
+                selected_opr = expr[rg[1]]
+                if selected_opr in opr:
+                    if name is None:
+                        name = selected_opr
+                    if expr[rg[1]] == name:
+                        splits.append(rg[1])
+            if len(splits) > 1:
+                break
+        splits.append(len(expr))
+        return {'+': Add, '-': Add, '*': Multiply, '/': Multiply, '^': Power}[name] \
+            (*(cls.from_expr(expr[splits[i]: splits[i + 1]]) for i in range(len(splits) - 1)))
 
-        for sr in srs[:-1]:
-            selected_opr = expr[sr[1]]
-            if selected_opr in opr:
-                if name is None:
-                    if selected_opr not in ['+', '-'] and expr[0] == '-':
-                        # special condition: negative function
-                        return FuncNode('-', [cls.from_expr(expr[1:])])
-                    name = selected_opr
-                if expr[sr[1]] == name:
-                    splits.append(sr[1])
+    @classmethod
+    def __expr_from_expr(cls, expr: str) -> IFunc:
+        expr = cls.__strip_redundant_parentheses(expr)
+        subexpression_ranges: List[Tuple[int, int]] = cls.__subexpression_ranges(expr)
+        if len(subexpression_ranges) == 1:
+            if expr[0] in {'+', '*'}:
+                return cls.__expr_from_expr(expr[1:])
+            elif expr[0] == '-':
+                return Negative(cls.__expr_from_expr(expr[1:]))
+            elif expr[0] == '/':
+                return Reciprocal(cls.__expr_from_expr(expr[1:]))
+            elif expr[-1] == ')':
+                outermost_func: Optional[Match[str]] = cls.regex_outermost_func_name.match(expr)
+                outermost_func_name: str = outermost_func.group('name')
+                outermost_func_args: List[str] = cls.__comma_split(outermost_func.group('args'))
+                if outermost_func_name in cls.traditional_functions:
+                    return cls.traditional_functions[outermost_func_name](
+                        *(cls.__expr_from_expr(arg)) for arg in outermost_func_args)
+                elif outermost_func_name in cls.__all:
+                    return cls.__all[outermost_func_name](
+                        *(cls.__expr_from_expr(arg)) for arg in outermost_func_args)
+                else:
+                    raise ValueError
+            else:
+                return Element(expr)
+        else:
+            return cls.__outermost_operator_from_expr(expr)
 
-
-class FuncEx(object):
-    regex_heading = re.compile(
-        r'^(?P<head>(?P<name>[a-zA-z]+)\((?P<parameters>(?:[a-z],)*[a-z])\)=)?(?P<expression>.*)$')
-
-    def __init__(self, origin_str: str):
-        std_str = re.sub(r'\s', '', origin_str)
-        head: Optional = self.__class__.regex_heading.match(std_str)
-        self._name: Optional[str] = head.group('name')
-        self._vars: List[str] = head.group('parameters').split(',') if head is None else ['x']
-        self._expr: str = head.group('expression')
-        assert self._expr
-        self._root: FuncNode = FuncNode.from_expr(self.expr)
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def vars(self) -> List[str]:
-        return self._vars
-
-    @property
-    def expr(self) -> str:
-        return self._expr
-
-    @property
-    def root(self) -> FuncNode:
-        return self._root
-
-    @property
-    def tuple_tree(self) -> tuple:
-        return self.root.tuple_tree
-
-    def apply(self, *args, **kwargs):
-        assert len(args) <= len(self.vars)
+    @classmethod
+    def from_expr(cls, origin_str: str) -> 'MyFunc':
+        head: Optional = cls.__class__.regex_heading.match(re.sub(r'\s', '', origin_str))
+        return MyFunc(cls.__expr_from_expr(head.group('expression')),
+                      tuple(head.group('parameters').split(',') if head is None else ['x']),
+                      head.group('name')
+                      )
 
 
 if __name__ == '__main__':
-    print(eg_g, FuncEx(eg_g).tuple_tree, sep='\n')
+    pass
