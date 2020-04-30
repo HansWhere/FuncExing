@@ -2,7 +2,7 @@
 # Mr. Thierfelder
 # AP Computer Science Principles
 # 9 April 2020
-# (independent development)
+# (independent development by Pan Lin)
 import re
 import math
 from abc import ABCMeta, abstractmethod, ABC
@@ -16,26 +16,34 @@ eg_cc = '(cos((e^x)-(x^2))*(ln(x/2)))+x*2^x'
 
 
 class IFunc(metaclass=ABCMeta):
+    # an interface of mathematical function types
     def __init__(self, *args: 'IFunc'):
         assert all(isinstance(arg, IFunc) for arg in args)
-        self._vars: Tuple[IFunc, ...] = args
+        # the arguments of the function
+        self._args: Tuple[IFunc, ...] = args
 
     @property
-    def vars(self) -> Tuple['IFunc', ...]:
-        return self._vars
+    def args(self) -> Tuple['IFunc', ...]:
+        # read-only
+        return self._args
 
     @property
     @abstractmethod
     def val(self) -> Union[str, int, float]:
+        # implement this method to set the value of the function
         pass
 
     @abstractmethod
     def derivative(self, var: str) -> 'IFunc':
+        # "var" is the independent variable of the derivative
+        # implement this method to set the derivative of the function
+        # need to consider the chain rule
         pass
 
     def apply(self, **kwargs: 'IFunc') -> 'IFunc':
+        # replace the subexpressions of the function
         new_func: IFunc = self.__new__(self.__class__)
-        new_func.__init__(*(var.apply(**kwargs) for var in self.vars))
+        new_func.__init__(*(var.apply(**kwargs) for var in self.args))
         return new_func
 
     def __call__(self, **kwargs: 'IFunc') -> 'IFunc':
@@ -44,20 +52,21 @@ class IFunc(metaclass=ABCMeta):
     def __eq__(self, other: 'IFunc') -> bool:
         # It is almost impossible to check whether two elementary function are equal
         # So this only represents that the two functions are formally equal
-        return self.__class__ == other.__class__ and self.vars == other.vars
+        return self.__class__ == other.__class__ and self.args == other.args
 
     def __str__(self) -> str:
         return '({})'.format(str(self.val))
 
 
 class IUnaryFunc(IFunc, ABC):
+    # the interface of the functions which has one and only one argument
     def __init__(self, arg: 'IFunc'):
         assert isinstance(arg, IFunc)
-        self._vars: Tuple[IFunc, ...] = (arg,)
+        self._args: Tuple[IFunc, ...] = (arg,)
 
     @property
     def var(self) -> IFunc:
-        return self.vars[0]
+        return self.args[0]
 
 
 class Element(IFunc):
@@ -70,7 +79,7 @@ class Element(IFunc):
             except ValueError:
                 pass
         self._val: Union[str, int, float] = val
-        self._vars = None
+        self._args = None
 
     @property
     def val(self) -> Union[str, int, float]:
@@ -92,24 +101,24 @@ class Element(IFunc):
 class Add(IFunc):
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
-            return sum(var.val for var in self.vars)
+        if all(isinstance(var.val, (int, float)) for var in self.args):
+            return sum(var.val for var in self.args)
         else:
-            return '+'.join(str(var.val) for var in self.vars)
+            return '+'.join(str(var.val) for var in self.args)
 
     def derivative(self, var: str) -> IFunc:
-        return Add(*(v.derivative(var) for v in self.vars))
+        return Add(*(v.derivative(var) for v in self.args))
 
     def __eq__(self, other: 'IFunc') -> bool:
         return self.__class__ == other.__class__ and \
-               all(var in other.vars for var in self.vars) and \
-               all(var in self.vars for var in other.vars)
+               all(var in other.args for var in self.args) and \
+               all(var in self.args for var in other.args)
 
 
 class Negative(IUnaryFunc):
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
+        if all(isinstance(var.val, (int, float)) for var in self.args):
             return -self.var.val
         else:
             return '(-{})'.format(str(self.var.val))
@@ -121,33 +130,32 @@ class Negative(IUnaryFunc):
 class Multiply(IFunc):
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
-            return reduce(lambda x, y: x * y, (var.val for var in self.vars))
+        if all(isinstance(var.val, (int, float)) for var in self.args):
+            return reduce(lambda x, y: x * y, (var.val for var in self.args))
         else:
-            return '*'.join('({})'.format(str(var.val)) for var in self.vars)
+            return '*'.join('({})'.format(str(var.val)) for var in self.args)
 
     def derivative(self, var: str) -> IFunc:
-        print(self.vars[:0] + (self.vars[0].derivative(var),) + self.vars[1:])
         return \
             Add(*(
-                Multiply(*(
-                        self.vars[:n] + (self.vars[n].derivative(var),) + self.vars[n + 1:]
-                )) for n in range(len(self.vars)))
-            )
+                    Multiply(*(
+                            self.args[:n] + (self.args[n].derivative(var),) + self.args[n + 1:]
+                    )) for n in range(len(self.args)))
+                )
 
     def __eq__(self, other: 'IFunc') -> bool:
         return self.__class__ == other.__class__ and \
-               all(var in other.vars for var in self.vars) and \
-               all(var in self.vars for var in other.vars)
+               all(var in other.args for var in self.args) and \
+               all(var in self.args for var in other.args)
 
 
 class Reciprocal(IUnaryFunc):
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
-            return -self.var.val
+        if all(isinstance(var.val, (int, float)) for var in self.args):
+            return 1 / self.var.val
         else:
-            return '1/({})'.format(str(self.var.val))
+            return '(1/({}))'.format(str(self.var.val))
 
     def derivative(self, var: str) -> IFunc:
         return Negative(Multiply(self.var.derivative(var), Reciprocal(Power(self.var, Element(2)))))
@@ -157,26 +165,27 @@ class Power(IFunc):
     def __init__(self, base: IFunc, *nested_exponents: IFunc):
         assert isinstance(base, IFunc) and all(isinstance(index, IFunc) for index in nested_exponents)
         if len(nested_exponents) > 1:
-            self._vars: Tuple[IFunc, IFunc] = (base, Power(*nested_exponents))
+            self._args: Tuple[IFunc, IFunc] = (base, Power(*nested_exponents))
         elif len(nested_exponents) == 1:
-            self._vars: Tuple[IFunc, IFunc] = (base, nested_exponents[0])
+            self._args: Tuple[IFunc, IFunc] = (base, nested_exponents[0])
 
     @property
     def base(self) -> IFunc:
-        return self._vars[0]
+        return self._args[0]
 
     @property
     def exponent(self) -> IFunc:
-        return self._vars[1]
+        return self._args[1]
 
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
+        if all(isinstance(var.val, (int, float)) for var in self.args):
             return self.base.val ** self.exponent.val
         else:
             return '{}^({})'.format(self.base, self.exponent)
 
     def derivative(self, var: str) -> IFunc:
+        # (f(x)^g(x))' = f(x)^g(x)*(g'(x)*ln(f(x))+g(x)*f'(x)/f(x))
         return \
             Add(
                 Multiply(
@@ -196,12 +205,13 @@ class Power(IFunc):
 class Sqrt(IUnaryFunc):
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
+        if all(isinstance(var.val, (int, float)) for var in self.args):
             return math.sqrt(self.var.val)
         else:
             return 'sqrt({})'.format(self.var.val)
 
     def derivative(self, var: str) -> IFunc:
+        # (sqrt(f(x)))' = f'(x)/(2*sqrt(f(x)))
         return \
             Multiply(
                 self.var.derivative(var),
@@ -217,19 +227,19 @@ class Sqrt(IUnaryFunc):
 class Log(IFunc):
     def __init__(self, base: IFunc, antilog: IFunc):
         assert isinstance(base, IFunc) and isinstance(antilog, IFunc)
-        self._vars: Tuple[IFunc, IFunc] = (base, antilog)
+        self._args: Tuple[IFunc, IFunc] = (base, antilog)
 
     @property
     def base(self) -> IFunc:
-        return self._vars[0]
+        return self._args[0]
 
     @property
     def antilog(self) -> IFunc:
-        return self._vars[1]
+        return self._args[1]
 
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
+        if all(isinstance(var.val, (int, float)) for var in self.args):
             return self.base.val ** self.antilog.val
         else:
             return 'log({},{})'.format(self.base, self.antilog)
@@ -261,7 +271,7 @@ class Log(IFunc):
 class Ln(Log, IUnaryFunc):
     def __init__(self, antilog: IFunc):
         assert isinstance(antilog, IFunc)
-        self._vars = (antilog,)
+        self._args = (antilog,)
 
     @property
     def base(self) -> IFunc:
@@ -285,7 +295,7 @@ class Ln(Log, IUnaryFunc):
 class Sin(IUnaryFunc):
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
+        if all(isinstance(var.val, (int, float)) for var in self.args):
             return math.sin(self.var.val)
         else:
             return 'sin({})'.format(str(self.var.val))
@@ -297,7 +307,7 @@ class Sin(IUnaryFunc):
 class Cos(IUnaryFunc):
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
+        if all(isinstance(var.val, (int, float)) for var in self.args):
             return math.cos(self.var.val)
         else:
             return 'cos({})'.format(str(self.var.val))
@@ -309,7 +319,7 @@ class Cos(IUnaryFunc):
 class Tan(IUnaryFunc):
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
+        if all(isinstance(var.val, (int, float)) for var in self.args):
             return math.tan(self.var.val)
         else:
             return 'tan({})'.format(str(self.var.val))
@@ -321,7 +331,7 @@ class Tan(IUnaryFunc):
 class Cot(IUnaryFunc):
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
+        if all(isinstance(var.val, (int, float)) for var in self.args):
             return 1 / math.tan(self.var.val)
         else:
             return 'cot({})'.format(str(self.var.val))
@@ -333,7 +343,7 @@ class Cot(IUnaryFunc):
 class Sec(IUnaryFunc):
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
+        if all(isinstance(var.val, (int, float)) for var in self.args):
             return 1 / math.cos(self.var.val)
         else:
             return 'sec({})'.format(str(self.var.val))
@@ -345,7 +355,7 @@ class Sec(IUnaryFunc):
 class Csc(IUnaryFunc):
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
+        if all(isinstance(var.val, (int, float)) for var in self.args):
             return 1 / math.sin(self.var.val)
         else:
             return 'tan({})'.format(str(self.var.val))
@@ -357,7 +367,7 @@ class Csc(IUnaryFunc):
 class Arcsin(IUnaryFunc):
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
+        if all(isinstance(var.val, (int, float)) for var in self.args):
             return math.asin(self.var.val)
         else:
             return 'arcsin({})'.format(str(self.var.val))
@@ -375,7 +385,7 @@ class Arcsin(IUnaryFunc):
 class Arccos(IUnaryFunc):
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
+        if all(isinstance(var.val, (int, float)) for var in self.args):
             return math.acos(self.var.val)
         else:
             return 'arccos({})'.format(str(self.var.val))
@@ -395,7 +405,7 @@ class Arccos(IUnaryFunc):
 class Arctan(IUnaryFunc):
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
+        if all(isinstance(var.val, (int, float)) for var in self.args):
             return math.atan(self.var.val)
         else:
             return 'arctan({})'.format(str(self.var.val))
@@ -413,7 +423,7 @@ class Arctan(IUnaryFunc):
 class Arccot(IUnaryFunc):
     @property
     def val(self) -> Union[str, int, float]:
-        if all(isinstance(var.val, (int, float)) for var in self.vars):
+        if all(isinstance(var.val, (int, float)) for var in self.args):
             return math.pi / 2 - math.atan(self.var.val)
         else:
             return 'arccot({})'.format(str(self.var.val))
@@ -431,6 +441,8 @@ class Arccot(IUnaryFunc):
 
 
 class MyFunc(object):
+    # the class of customized functions
+    # Each instance is a customized function
     traditional_functions: Dict[str, type] = {
         'sqrt': Sqrt,
         'log': Log,
@@ -446,7 +458,7 @@ class MyFunc(object):
         'arctan': Arctan,
         'arccot': Arccot
     }
-    __all: Dict[str, 'MyFunc'] = {}
+    __all: Dict[str, 'MyFunc'] = {}  # The dictionary of customized functions
     regex_heading = re.compile(
         r'^(?P<head>(?P<name>[a-zA-z]+)\((?P<parameters>(?:[a-z],)*[a-z])\)=)?(?P<expression>.*)$')
     regex_pre_naked_subs = re.compile(r'\w+(?=[,+*/^-])|(?:(?<=[,+*/^-])|^)\w+$')
@@ -457,12 +469,6 @@ class MyFunc(object):
         self._analytic: IFunc = analytic
         self._parameters: Tuple[str, ...] = parameters
         self.__class__.__all.update({self._name: self})
-
-    def __del__(self):
-        try:
-            self.__class__.__all.pop(self._name)
-        except ValueError:
-            pass
 
     @property
     def name(self):
@@ -603,5 +609,7 @@ class MyFunc(object):
 
 
 if __name__ == '__main__':
-    print('Hello: ', MyFunc.from_expr(eg_f)().derivative('x'))
-    print()
+    print(MyFunc.from_expr(eg_f)().derivative('x'))
+    print(eg_c)
+    print(MyFunc.from_expr(eg_c)('x'))
+    print(MyFunc.from_expr(eg_c)(10))

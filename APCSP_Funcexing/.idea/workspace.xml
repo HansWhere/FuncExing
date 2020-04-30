@@ -11,6 +11,9 @@
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="ExportToHTMLSettings">
+    <option name="OUTPUT_DIRECTORY" value="$PROJECT_DIR$/../APCSP_Funcexing\exportToHTML" />
+  </component>
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
@@ -26,6 +29,7 @@
   <component name="PropertiesComponent">
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="settings.editor.selected.configurable" value="reference.settingsdialog.IDE.editor.colors.Python" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
@@ -197,7 +201,14 @@
       <option name="project" value="LOCAL" />
       <updated>1587657833539</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="04/23 add trigs">
+      <created>1587697682659</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1587697682659</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -234,6 +245,7 @@
     <MESSAGE value="04/21 before reconstruction, add Multiply class" />
     <MESSAGE value="04/23 after reconstruction, haven't started testing yet" />
     <MESSAGE value="04/23 fixed some bugs" />
-    <option name="LAST_COMMIT_MESSAGE" value="04/23 fixed some bugs" />
+    <MESSAGE value="04/23 add trigs" />
+    <option name="LAST_COMMIT_MESSAGE" value="04/23 add trigs" />
   </component>
 </project>
