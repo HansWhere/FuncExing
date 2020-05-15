@@ -9,11 +9,6 @@ from abc import ABCMeta, abstractmethod, ABC
 from functools import reduce
 from typing import List, Optional, Union, Tuple, Dict, Match
 
-eg_f = 'f(x)=cos(e^x-x^2)*ln(x/2)'  # classic
-eg_g = 'g(x)=-(sin(x-e^(x^(x-1))+1)/x)+(x*e^(x+1)+1)-1'  # lots of parentheses
-eg_c = 'c(x)=(cos((e^x)-(x^2))*(ln(x/2)))+x*2^x'  # unnecessary parentheses
-eg_cc = '(cos((e^x)-(x^2))*(ln(x/2)))+x*2^x'
-
 
 class IFunc(metaclass=ABCMeta):
     # an interface of mathematical function types
@@ -47,6 +42,7 @@ class IFunc(metaclass=ABCMeta):
         return new_func
 
     def __call__(self, **kwargs: 'IFunc') -> 'IFunc':
+        # syntactic sugar of "apply"
         return self.apply(**kwargs)
 
     def __eq__(self, other: 'IFunc') -> bool:
@@ -71,6 +67,8 @@ class IUnaryFunc(IFunc, ABC):
 
 class Element(IFunc):
     def __init__(self, val: Union[str, int, float]):
+        # try to convert the argument to a numerical value (int or float)
+        # If we can't, then just regard it as an independent variable
         if isinstance(val, str) and val.isnumeric():
             val = int(val)
         else:
@@ -89,6 +87,8 @@ class Element(IFunc):
         return Element(kwargs[self.val] if self.val in kwargs else self.val)
 
     def derivative(self, var: str) -> 'IFunc':
+        # dx/dx = 1  the derivative of 'x' is 1
+        # dC/dx = 0  the derivative of a constant is 0
         return Element(1 if self.val == var else 0)
 
     def __eq__(self, other: 'IFunc') -> bool:
@@ -104,9 +104,11 @@ class Add(IFunc):
         if all(isinstance(var.val, (int, float)) for var in self.args):
             return sum(var.val for var in self.args)
         else:
+            # if the value cannot be calculated, just return the whole expression
             return '+'.join(str(var.val) for var in self.args)
 
     def derivative(self, var: str) -> IFunc:
+        # (d/dx)(y_1 + y_2 + ... + y_n) = d(y_1)/dx + d(y_2)/dx + ... + d(y_n)/dx
         return Add(*(v.derivative(var) for v in self.args))
 
     def __eq__(self, other: 'IFunc') -> bool:
@@ -124,6 +126,7 @@ class Negative(IUnaryFunc):
             return '(-{})'.format(str(self.var.val))
 
     def derivative(self, var: str) -> IFunc:
+        # d(-y)/dx = -(dy/dx)
         return Negative(self.var.derivative(var))
 
 
@@ -136,6 +139,9 @@ class Multiply(IFunc):
             return '*'.join('({})'.format(str(var.val)) for var in self.args)
 
     def derivative(self, var: str) -> IFunc:
+        # product rule
+        # (d/dx)(y_1 * y_2) = (y_1)'*y_2 + y_1*(y_2)'
+        # (d/dx)(y_1 * y_2 * ... * y_n) = (y_1)'*y_2*...*y_n + y_1*(y_2)'*...*y_n + ... + y_1*y_2*...*(y_n)'
         return \
             Add(*(
                     Multiply(*(
@@ -158,6 +164,7 @@ class Reciprocal(IUnaryFunc):
             return '(1/({}))'.format(str(self.var.val))
 
     def derivative(self, var: str) -> IFunc:
+        # d(1/y)/x = -(dy/dx)/y^2
         return Negative(Multiply(self.var.derivative(var), Reciprocal(Power(self.var, Element(2)))))
 
 
@@ -459,9 +466,11 @@ class MyFunc(object):
         'arccot': Arccot
     }
     __all: Dict[str, 'MyFunc'] = {}  # The dictionary of customized functions
-    regex_heading = re.compile(
+    regex_heading = re.compile(  # the regular expression to separate the head and body
         r'^(?P<head>(?P<name>[a-zA-z]+)\((?P<parameters>(?:[a-z],)*[a-z])\)=)?(?P<expression>.*)$')
+    # to catch some substrings which might be subexpressions
     regex_pre_naked_subs = re.compile(r'\w+(?=[,+*/^-])|(?:(?<=[,+*/^-])|^)\w+$')
+    # for the expressions shaped like "f(arg_1, arg_2, ...)", catch 'f' as 'name' and 'arg_1, arg_2, ...' as 'args'
     regex_outermost_func_name = re.compile(r'^(?P<name>[A-Za-z]+)\((?P<args>.+)\)$')
 
     def __init__(self, analytic: IFunc, parameters: Tuple[str, ...] = (), name: Optional[str] = None):
@@ -483,6 +492,8 @@ class MyFunc(object):
         return self._parameters
 
     def __call__(self, *args: IFunc, **kwargs: IFunc) -> IFunc:
+        # substitute the arguments into the variables
+        # if you do not want to change the expression of your customized function, just input nothing
         n_args: Dict[str, IFunc] = dict(zip(self.parameters, args))
         n_args.update(kwargs)
         return self.analytic.apply(**n_args)
@@ -506,7 +517,19 @@ class MyFunc(object):
 
     @classmethod
     def __subexpression_ranges(cls, expr: str) -> List[Tuple[int, int]]:
-        wrapped_subs = cls.__parentheses_ranges(expr)
+        stats: int = 0
+        wrapped_subs: List[Union[Tuple[int, int], Tuple[int]]] = []
+        for index, char in enumerate(expr):
+            assert stats >= 0
+            if char == "(":
+                if not wrapped_subs or len(wrapped_subs[-1]) == 2:
+                    wrapped_subs.append((index,))
+                stats += 1
+            elif char == ")":
+                stats -= 1
+                if stats == 0 and len(wrapped_subs[-1]) == 1:
+                    wrapped_subs[-1] += (index + 1,)
+        assert not wrapped_subs or len(wrapped_subs[-1]) == 2
         pre_naked_subs = cls.regex_pre_naked_subs.finditer(expr)
         naked_subs = []
         if wrapped_subs:
@@ -529,9 +552,22 @@ class MyFunc(object):
 
     @classmethod
     def __comma_split(cls, exprs: str) -> List[str]:
+        # one of the two subroutines of the selected method
         commas = list(re.finditer(',', exprs))
         splits: List[int] = [0]
-        parentheses_ranges = cls.__parentheses_ranges(exprs)
+        stats: int = 0
+        parentheses_ranges: List[Union[Tuple[int, int], Tuple[int]]] = []
+        for index, char in enumerate(exprs):
+            assert stats >= 0
+            if char == "(":
+                if not parentheses_ranges or len(parentheses_ranges[-1]) == 2:
+                    parentheses_ranges.append((index,))
+                stats += 1
+            elif char == ")":
+                stats -= 1
+                if stats == 0 and len(parentheses_ranges[-1]) == 1:
+                    parentheses_ranges[-1] += (index + 1,)
+        assert not parentheses_ranges or len(parentheses_ranges[-1]) == 2
         args: List[str] = []
         if commas:
             for comma in commas:
@@ -551,6 +587,7 @@ class MyFunc(object):
 
     @classmethod
     def __outermost_operator_from_expr(cls, expr: str) -> IFunc:
+        # one of the two subroutines of the selected method
         name: Optional[str] = None
         splits: List[int] = [0]
         subexpression_ranges: List[Tuple[int, int]] = cls.__subexpression_ranges(expr)
@@ -570,6 +607,7 @@ class MyFunc(object):
 
     @classmethod
     def __expr_from_expr(cls, expr: str) -> IFunc:
+        # selected method in 2b
         expr = cls.__strip_redundant_parentheses(expr)
         subexpression_ranges: List[Tuple[int, int]] = cls.__subexpression_ranges(expr)
         if len(subexpression_ranges) == 1:
@@ -607,8 +645,13 @@ class MyFunc(object):
                       head.group('name')
                       )
 
+# The user can calculate the derivative of their customized function
+# However, I still cannot simplify the function structure :(
+
 
 if __name__ == '__main__':
+    eg_f = 'f(x)=cos(e^x-x^2)*ln(x/2)'
+    eg_c = 'c(x)=(cos((e^x)-(x^2))*(ln(x/2)))+x*2^x'
     print(MyFunc.from_expr(eg_f)().derivative('x'))
     print(eg_c)
     print(MyFunc.from_expr(eg_c)('x'))

@@ -208,7 +208,14 @@
       <option name="project" value="LOCAL" />
       <updated>1587697682659</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="04/29">
+      <created>1588220965485</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1588220965486</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -246,6 +253,7 @@
     <MESSAGE value="04/23 after reconstruction, haven't started testing yet" />
     <MESSAGE value="04/23 fixed some bugs" />
     <MESSAGE value="04/23 add trigs" />
-    <option name="LAST_COMMIT_MESSAGE" value="04/23 add trigs" />
+    <MESSAGE value="04/29" />
+    <option name="LAST_COMMIT_MESSAGE" value="04/29" />
   </component>
 </project>
